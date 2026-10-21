@@ -22,7 +22,7 @@ interface UserRecord {
     role: 'manager' | 'staff';
     type: 'fulltime' | 'parttime';
     avatar: string;
-    hourlyRate: number;
+    hourlyRate: number | null; // 只有店長（與本人）看得到時薪
 }
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];

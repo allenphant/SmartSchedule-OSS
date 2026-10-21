@@ -183,13 +183,16 @@ export default async function SchedulePage() {
             return 0;
         });
 
+    // 時薪是薪資資料：只給店長與本人。這裡用 service role 讀整店的 profile，
+    // 傳給瀏覽器的資料會原樣出現在員工的頁面裡，所以在伺服器端就拿掉。
+    const canSeeWages = myProfile.role === 'manager';
     const allUsers: UserRecord[] = storeProfiles.map(p => ({
         id: p.id,
         name: p.full_name,
         role: p.role as 'manager' | 'staff',
         type: p.employment_type as 'fulltime' | 'parttime',
         avatar: initials(p.full_name),
-        hourlyRate: p.hourly_rate,
+        hourlyRate: canSeeWages || p.id === user.id ? p.hourly_rate : null,
     }));
 
     const currentUser = allUsers.find(u => u.id === user.id) ?? {

@@ -5,6 +5,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import { canManageStore, type StoreAccessClient } from '@/lib/utils/storeAccess';
 
 // Admin actions require service role for some operations (like deleting users) 
 // or ensuring we bypass RLS for listing pending users strictly.
@@ -14,14 +15,10 @@ export async function getPendingUsers(storeId: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    // Verify manager role
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-    if (profile?.role !== 'manager') return { success: false, error: 'Forbidden' };
+    // 必須是「這家店」的店長，不只是任何地方的店長（下面用 service role，RLS 不會再擋）
+    if (!(await canManageStore(supabase as unknown as StoreAccessClient, user.id, storeId))) {
+        return { success: false, error: 'Forbidden' };
+    }
 
     // Use service role to bypass RLS for listing pending users
     const admin = createServiceClient<Database>(
@@ -46,14 +43,16 @@ export async function approveUser(targetUserId: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    // Check manager permissions (simplified)
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'manager') return { success: false, error: 'Forbidden' };
-
     const admin = createServiceClient<Database>(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
+
+    // 目標屬於哪一家店，呼叫者就必須是那家店的店長
+    const { data: target } = await admin.from('profiles').select('store_id').eq('id', targetUserId).single();
+    if (!target || !(await canManageStore(supabase as unknown as StoreAccessClient, user.id, target.store_id))) {
+        return { success: false, error: 'Forbidden' };
+    }
 
     const { error } = await admin
         .from('profiles')
@@ -71,8 +70,18 @@ export async function rejectUser(targetUserId: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'manager') return { success: false, error: 'Forbidden' };
+    // 不能刪自己；目標屬於哪一家店，呼叫者就必須是那家店的店長
+    if (targetUserId === user.id) return { success: false, error: 'Forbidden' };
+
+    const admin = createServiceClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    const { data: target } = await admin.from('profiles').select('store_id').eq('id', targetUserId).single();
+    if (!target || !(await canManageStore(supabase as unknown as StoreAccessClient, user.id, target.store_id))) {
+        return { success: false, error: 'Forbidden' };
+    }
 
     // Use service role to delete user from Auth and Profiles
     // Note: Deleting from Auth usually cascades to Profiles if configured, 
@@ -80,11 +89,6 @@ export async function rejectUser(targetUserId: string) {
     // For simplicity and safety, we will just delete the profile row. 
     // The auth user will remain but have no profile (like a broken state), 
     // OR we should delete auth user. Deleting auth user requires service role.
-
-    const admin = createServiceClient<Database>(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
 
     // 1. Delete profile (manually first, though cascade might handle it)
     const { error: profileError } = await admin

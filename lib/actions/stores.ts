@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { Database } from '@/lib/types/database';
 import { SupabaseClient, createClient as createServiceClient } from '@supabase/supabase-js';
+import { canManageStore, type StoreAccessClient } from '@/lib/utils/storeAccess';
 
 /**
  * 取得目前 manager 有權管理的所有分店
@@ -69,13 +70,10 @@ export async function toggleAutoLockScheduling(storeId: string, newValue: boolea
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-    if (profile?.role !== 'manager') return { success: false, error: 'Forbidden' };
+    // 必須是「這家店」的店長；下面用 service role，RLS 不會再擋
+    if (!(await canManageStore(supabase as unknown as StoreAccessClient, user.id, storeId))) {
+        return { success: false, error: 'Forbidden' };
+    }
 
     const admin = createServiceClient<Database>(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

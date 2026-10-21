@@ -468,9 +468,11 @@ export function ScheduleClient({
                                                         {u.type === 'fulltime' ? 'FT' : 'PT'}
                                                     </span>
                                                 </div>
-                                                <div className="text-xs text-gray-500">
-                                                    時薪: ${u.hourlyRate}
-                                                </div>
+                                                {u.hourlyRate !== null && (
+                                                    <div className="text-xs text-gray-500">
+                                                        時薪: ${u.hourlyRate}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="text-right">
