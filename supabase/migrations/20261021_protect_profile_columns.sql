@@ -24,10 +24,12 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF NEW.role IS NOT DISTINCT FROM OLD.role
-     AND NEW.store_id IS NOT DISTINCT FROM OLD.store_id
-     AND NEW.is_approved IS NOT DISTINCT FROM OLD.is_approved
-     AND NEW.hourly_rate IS NOT DISTINCT FROM OLD.hourly_rate THEN
+  -- 用 to_jsonb 比對：某個欄位不存在（例如薪資已搬到別的表、hourly_rate 欄位已移除）
+  -- 時取到的是 NULL 對 NULL，不會報錯；直接寫 NEW.hourly_rate 在欄位不存在時每次更新都會出錯。
+  IF to_jsonb(NEW) -> 'role' IS NOT DISTINCT FROM to_jsonb(OLD) -> 'role'
+     AND to_jsonb(NEW) -> 'store_id' IS NOT DISTINCT FROM to_jsonb(OLD) -> 'store_id'
+     AND to_jsonb(NEW) -> 'is_approved' IS NOT DISTINCT FROM to_jsonb(OLD) -> 'is_approved'
+     AND to_jsonb(NEW) -> 'hourly_rate' IS NOT DISTINCT FROM to_jsonb(OLD) -> 'hourly_rate' THEN
     RETURN NEW;
   END IF;
 

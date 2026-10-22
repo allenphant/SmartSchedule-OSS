@@ -69,4 +69,12 @@ assert.equal((await as("service_role", null, `update profiles set role='manager'
 assert.equal((await row(id.staffA)).role, "manager");
 assert.equal((await as("authenticated", id.mgrA, `update profiles set store_id='${id.B}' where id='${id.staffA}'`)).ok, false, "a manager cannot move someone into a store they do not manage");
 
+// the same checks when profiles has no hourly_rate column (wages moved to another table):
+// a trigger that names NEW.hourly_rate directly fails on EVERY update there
+await db.exec("alter table profiles drop column hourly_rate");
+await db.exec("reset role");
+assert.equal((await own("full_name", "'Again'")).ok, true, "editing a name still works without profiles.hourly_rate");
+assert.equal((await own("role", "'manager'")).ok, false, "role is still protected without profiles.hourly_rate");
+assert.equal((await as("authenticated", id.mgrA, `update profiles set is_approved=false where id='${id.staffA}'`)).count, 1, "a manager still works without profiles.hourly_rate");
+
 console.log("profile column protection: all checks passed");
