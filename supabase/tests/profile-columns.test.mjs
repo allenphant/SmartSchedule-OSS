@@ -73,8 +73,10 @@ assert.equal((await as("authenticated", id.mgrA, `update profiles set store_id='
 // a trigger that names NEW.hourly_rate directly fails on EVERY update there
 await db.exec("alter table profiles drop column hourly_rate");
 await db.exec("reset role");
-assert.equal((await own("full_name", "'Again'")).ok, true, "editing a name still works without profiles.hourly_rate");
-assert.equal((await own("role", "'manager'")).ok, false, "role is still protected without profiles.hourly_rate");
+// (staff A is a manager by now, so staff B plays the ordinary employee)
+const ownB = (field, value) => as("authenticated", id.staffB, `update profiles set ${field}=${value} where id='${id.staffB}'`);
+assert.equal((await ownB("full_name", "'Again'")).ok, true, "editing a name still works without profiles.hourly_rate");
+assert.equal((await ownB("role", "'manager'")).ok, false, "role is still protected without profiles.hourly_rate");
 assert.equal((await as("authenticated", id.mgrA, `update profiles set is_approved=false where id='${id.staffA}'`)).count, 1, "a manager still works without profiles.hourly_rate");
 
 console.log("profile column protection: all checks passed");
