@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test \"lib/**/*.test.ts\"",
+    "test:db": "node supabase/tests/profile-columns.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -15,12 +17,13 @@
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "lucide-react": "^0.566.0",
-    "next": "^16.1.6",
+    "next": "^16.4.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@types/cookie": "^0.6.0",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^22",

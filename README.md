@@ -50,6 +50,11 @@ npm run dev
 *   員工只能讀取、修改自己的排班意願。
 *   店長只能讀取、修改自己所屬分店的資料。
 *   所有的排班變更都會寫入 `audit_logs` 表格以供稽核。
+*   員工**不能**改自己的 `role`、`store_id`、`is_approved`、`hourly_rate`（`20261021_protect_profile_columns.sql` 的 trigger 在資料庫端擋住；RLS 只能限制「哪些列」，管不到「哪些欄」）。核准、改角色、改時薪只能由該店店長或伺服器端（service role）進行。
+*   店長的管理動作（核准／拒絕員工、切換自動鎖定）都會先確認目標資料屬於**他管理的那家店**。
+*   時薪只傳給店長與本人，不會出現在員工頁面的資料裡。
+*   測試：`npm test`（Server Action 的店別檢查，需要 Node 22.18 以上）、`npm run test:db`（在記憶體內的 Postgres 跑全部 migration，檢查 `profiles` 的欄位保護）。
+*   注意：`manager_stores` 資料表被 `20260311_fix_multi_store_rls.sql` 使用，但 `supabase/migrations/` 裡沒有任何檔案建立它；全新安裝請先自行建立（`manager_id`、`store_id` 兩欄，主鍵為兩者組合）。
 
 ## 📄 授權 (License)
 MIT License
